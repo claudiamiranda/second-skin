@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Second Skin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;800&family=Inter+Tight:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: a quiet instrument for trying on strange faces; few words, the face is the show.
+   IDEA: a dressing-room mirror in a spaceship, the mirror is the page.
+   PICTURE: the live canvas, large, with the face wearing the look.
+   COLOUR and TYPE: graphite-violet ground, pearl ink, one iridescent sheen on the active look; Syne + Inter Tight.
+   LAYOUT: mirror first, look chips and sliders beside it on wide screens, under it on phones. */
+:root{color-scheme:light dark;--bg:light-dark(#efecf3,#0f0d13);--ink:light-dark(#17141c,#ece8f2);--mute:light-dark(#5d5767,#a39cae);--panel:light-dark(#ffffff,#18151e);--line:light-dark(#d9d3e0,#2c2734);--sheen:conic-gradient(from 200deg,#b8f3ff,#d9b8ff,#ffc4e6,#fff1b8,#b8ffd9,#b8f3ff)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Inter Tight",system-ui,sans-serif;overflow-x:clip}
+.band{padding:clamp(20px,3.5vw,48px) max(5vw,16px)}
+.top{padding-bottom:0;max-width:1240px;margin:0 auto}
+h1{font:800 clamp(34px,5vw,52px)/1.05 Syne,sans-serif;margin:0 0 6px;text-wrap:balance}
+.top p{margin:0;color:var(--mute);max-width:60ch}
+main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:24px;max-width:1240px;margin:0 auto;align-items:start}
+.mirror{position:relative;background:#0a090d;border-radius:18px;overflow:hidden;aspect-ratio:4/3;display:grid;place-items:center}
+.mirror canvas{max-width:100%;max-height:100%;display:block}
+#empty{position:absolute;inset:0;display:grid;place-content:center;gap:14px;text-align:center;color:#ece8f2;padding:24px;background:radial-gradient(ellipse at 50% 40%,#2a2333,#0a090d 70%)}
+#empty[hidden]{display:none}
+#empty p{margin:0;color:#b9b1c4;max-width:34ch}
+#status{position:absolute;left:12px;bottom:12px;right:12px;font-size:14px;color:#ece8f2;background:#0a090dcc;padding:8px 12px;border-radius:10px;width:fit-content}
+#status:empty{display:none}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;display:grid;gap:18px}
+.looks{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.look{font:600 15px/1.2 "Inter Tight",sans-serif;min-height:52px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer;padding:8px 10px;text-align:left}
+.look[aria-checked=true]{border:2px solid transparent;background:linear-gradient(var(--panel),var(--panel)) padding-box,var(--sheen) border-box}
+#blurb{margin:0;color:var(--mute);min-height:3em}
+label.sl{display:grid;gap:6px;font-size:14px;font-weight:500}
+input[type=range]{width:100%;accent-color:#b48cff;height:28px}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.btn{font:600 15px "Inter Tight",sans-serif;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--ink);color:var(--bg);cursor:pointer;display:inline-flex;align-items:center}
+.btn.ghost{background:transparent;color:var(--ink)}
+#empty .btn{background:#ece8f2;color:#0f0d13;border:0}#empty .btn.ghost{background:transparent;color:#ece8f2;border:1px solid #4a4255}
+#empty .btns{justify-content:center}
+.btn:disabled{opacity:.45;cursor:default}
+button:focus-visible,.btn:focus-within,input:focus-visible{outline:2px solid #b48cff;outline-offset:2px}
+.note{font-size:13px;color:var(--mute);margin:0}
+#shots{max-width:1240px;margin:0 auto}
+#shots h2{font:600 22px/1.2 Syne,sans-serif;margin:0 0 4px}
+.strip{display:flex;gap:12px;overflow-x:auto;padding:12px 0;scroll-snap-type:x mandatory}
+.strip img{height:180px;border-radius:12px;scroll-snap-align:start;flex:none}
+@media(max-width:900px){main{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:600px){.mirror{aspect-ratio:3/4}}
+</style>
+</head>
+<body>
+<header class="band top">
+  <h1>Second Skin</h1>
+  <p>Sci-fi makeup and masks that add something to a face rather than correct it. No smoothing, no slimming.</p>
+</header>
+<main class="band">
+  <div class="mirror">
+    <canvas id="stage" width="640" height="480" aria-label="Your face wearing the selected look"></canvas>
+    <div id="empty">
+      <p>Start your camera, or upload a straight-on selfie with good light.</p>
+      <div class="btns">
+        <button class="btn cam">Live camera</button>
+        <label class="btn ghost">Upload a photo<input type="file" accept="image/*" class="file" hidden></label>
+      </div>
+    </div>
+    <div id="status">Loading the face model…</div>
+  </div>
+  <aside class="panel">
+    <div class="looks" role="radiogroup" aria-label="Look"></div>
+    <p id="blurb"></p>
+    <label class="sl">Intensity <input type="range" id="amt" min="0" max="100" value="85"></label>
+    <label class="sl">Hue shift <input type="range" id="hue" min="0" max="360" value="0"></label>
+    <div class="btns">
+      <button class="btn cam">Live camera</button>
+      <label class="btn ghost">Upload photo<input type="file" accept="image/*" class="file" hidden></label>
+      <button class="btn ghost" id="snap" disabled>Snapshot</button>
+    </div>
+    <p class="note">Everything runs on this device. No image leaves your browser.</p>
+  </aside>
+</main>
+<section class="band" id="shots" hidden>
+  <h2>Snapshots</h2>
+  <p class="note">Long-press or right-click an image to save it.</p>
+  <div class="strip"></div>
+</section>
+<video id="vid" playsinline muted autoplay hidden></video>
+<script src="fm_assets.js"></script>
+<script>
+{const b64=s=>{const bin=atob(s),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u};
+ let pa,data,graph;
+ Object.defineProperty(window,'createMediapipeSolutionsPackedAssets',{configurable:true,get:()=>pa,set:v=>{if(v&&typeof v==='object')v.getPreloadedPackage=()=>(data||(data=b64(window.__FM_DATA))).buffer;pa=v}});
+ const of=window.fetch.bind(window);
+ window.fetch=(u,...r)=>String(u).endsWith('face_mesh.binarypb')?Promise.resolve(new Response(graph||(graph=b64(window.__FM_GRAPH)))):of(u,...r);}
+</script>
+<script src="face_mesh.js"></script>
+<script>
+{
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const cv=$('#stage'), ctx=cv.getContext('2d'), ov=document.createElement('canvas'), oc=ov.getContext('2d');
+const video=$('#vid'), statusEl=$('#status');
+let src=null, mirror=false, lm=null, look='chrome', amt=.85, hue=0, live=false, busy=false, W=640, H=480, s=1;
+const say=t=>{statusEl.textContent=t};
+
+const LOOKS={
+  chrome:['Faceted chrome','A low-poly mirror-metal mask. Its reflections slide as you turn your head.'],
+  circuit:['Circuit tattoo','Glowing traces along the structure of the face, with light running through them.'],
+  veil:['Holo veil','A scanning wireframe that floats just over the skin.'],
+  prism:['Prism glam','Iridescent lids, a long graphic wing, holographic lips and cheek gems.']
+};
+$('.looks').innerHTML=Object.entries(LOOKS).map(([k,[n]])=>`<button class="look" role="radio" data-k="${k}" aria-checked="${k===look}">${n}</button>`).join('');
+const pick=k=>{look=k;$$('.look').forEach(b=>b.setAttribute('aria-checked',b.dataset.k===k));$('#blurb').textContent=LOOKS[k][1]};
+$$('.look').forEach(b=>b.addEventListener('click',()=>pick(b.dataset.k)));pick(look);
+$('#amt').addEventListener('input',e=>amt=e.target.value/100);
+$('#hue').addEventListener('input',e=>hue=+e.target.value);
+
+// Landmark loops (MediaPipe face mesh indices)
+const OVAL=[10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
+const EYE_R=[33,246,161,160,159,158,157,173,133,155,154,153,145,144,163,7], EYE_L=[263,466,388,387,386,385,384,398,362,382,381,380,374,373,390,249];
+const LIP_O=[61,185,40,39,37,0,267,269,270,409,291,375,321,405,314,17,84,181,91,146], LIP_I=[78,191,80,81,82,13,312,311,310,415,308,324,318,402,317,14,87,178,88,95];
+const LID_R=[133,173,157,158,159,160,161,246,33], LID_L=[362,398,384,385,386,387,388,466,263];
+const BROWLO_R=[46,53,52,65,55], BROWLO_L=[276,283,282,295,285];
+const TRACES=[[54,103,67,109,10,338,297,332,284],[10,151,9,8,168,6,197,195,5,4],[226,31,228,229,230,231,232,233],[446,261,448,449,450,451,452,453],[143,116,123,147,213],[372,345,352,376,433],[176,148,152,377,400],[70,63,105,66,107],[300,293,334,296,336],[61,57,43,106,182],[291,287,273,335,406]];
+const EDGES=typeof FACEMESH_TESSELATION!=='undefined'?FACEMESH_TESSELATION:[];
+const TRI=(()=>{const adj=new Map(),out=[];for(const[a,b]of EDGES){(adj.get(a)||adj.set(a,new Set()).get(a)).add(b);(adj.get(b)||adj.set(b,new Set()).get(b)).add(a)}
+  for(const[a,b]of EDGES){for(const c of adj.get(a)){if(c>a&&c>b&&adj.get(b).has(c))out.push([a,b,c])}}return out})();
+
+const P=i=>[lm[i].x*W,lm[i].y*H];
+const dist=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
+const poly=(c,ids,close=true)=>{c.beginPath();ids.forEach((i,k)=>{const[x,y]=P(i);k?c.lineTo(x,y):c.moveTo(x,y)});if(close)c.closePath()};
+const centroid=ids=>{let x=0,y=0;ids.forEach(i=>{const p=P(i);x+=p[0];y+=p[1]});return[x/ids.length,y/ids.length]};
+const grow=(c,ids,k)=>{const[cx,cy]=centroid(ids);c.beginPath();ids.forEach((i,n)=>{const[x,y]=P(i);const X=cx+(x-cx)*k,Y=cy+(y-cy)*k;n?c.lineTo(X,Y):c.moveTo(X,Y)});c.closePath()};
+
+function chrome(c,t){
+  oc.clearRect(0,0,W,H);
+  const n=lm.length,VN=new Float32Array(n*3),FN=[];
+  for(const[a,b,d]of TRI){const A=lm[a],B=lm[b],D=lm[d];
+    const ux=(B.x-A.x)*W,uy=(B.y-A.y)*H,uz=(B.z-A.z)*W,vx=(D.x-A.x)*W,vy=(D.y-A.y)*H,vz=(D.z-A.z)*W;
+    let nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx;if(nz>0){nx=-nx;ny=-ny;nz=-nz}
+    for(const i of[a,b,d]){VN[i*3]+=nx;VN[i*3+1]+=ny;VN[i*3+2]+=nz}}
+  for(let it=0;it<2;it++){const T=VN.slice();for(const[a,b]of EDGES){for(let k=0;k<3;k++){T[a*3+k]+=VN[b*3+k]*.5;T[b*3+k]+=VN[a*3+k]*.5}}VN.set(T)}
+  const sway=Math.sin(t*.5)*.25;
+  oc.lineWidth=.8;oc.lineJoin='round';
+  for(const[a,b,d]of TRI){
+    let nx=0,ny=0,nz=0;for(const i of[a,b,d]){const l=Math.hypot(VN[i*3],VN[i*3+1],VN[i*3+2])||1;nx+=VN[i*3]/l;ny+=VN[i*3+1]/l;nz+=VN[i*3+2]/l}
+    const l=Math.hypot(nx,ny,nz)||1;nx/=l;ny/=l;nz=-nz/l;
+    // matcap-style reflection: bands follow the curvature, sliding over time
+    const w=Math.sin(ny*7+nx*2.4+sway*6+t*.6);
+    const L=Math.min(97,52+40*w*Math.abs(w)**.3+Math.max(0,1-Math.hypot(nx+.3,ny+.45)*3.5)*40);
+    const h=(560+hue+nx*30+ny*25)%360;
+    const col=`hsl(${h} ${14+30*(1-nz)}% ${L}%)`;
+    const A=lm[a],B=lm[b],D=lm[d];
+    oc.fillStyle=oc.strokeStyle=col;oc.beginPath();oc.moveTo(A.x*W,A.y*H);oc.lineTo(B.x*W,B.y*H);oc.lineTo(D.x*W,D.y*H);oc.closePath();oc.fill();oc.stroke();
+  }
+  oc.globalCompositeOperation='destination-out';
+  grow(oc,EYE_R,1.25);oc.fill();grow(oc,EYE_L,1.25);oc.fill();poly(oc,LIP_I);oc.fill();
+  oc.globalCompositeOperation='source-over';
+  oc.strokeStyle=`hsl(${(190+hue)%360} 90% 85%)`;oc.lineWidth=1.4*s;oc.shadowColor=oc.strokeStyle;oc.shadowBlur=10*s;
+  grow(oc,EYE_R,1.25);oc.stroke();grow(oc,EYE_L,1.25);oc.stroke();oc.shadowBlur=0;
+  c.globalAlpha=amt;c.filter=`blur(${.7*s}px)`;c.drawImage(ov,0,0);c.filter='none';c.globalAlpha=1;
+}
+
+function along(ids,f){const pts=ids.map(P);let L=0;const seg=[];for(let i=1;i<pts.length;i++){const d=dist(pts[i-1],pts[i]);seg.push(d);L+=d}
+  let r=f*L;for(let i=0;i<seg.length;i++){if(r<=seg[i]){const k=r/seg[i];return[pts[i][0]+(pts[i+1][0]-pts[i][0])*k,pts[i][1]+(pts[i+1][1]-pts[i][1])*k]}r-=seg[i]}return pts[pts.length-1]}
+function circuit(c,t){
+  const col=`hsl(${(185+hue)%360} 100% 62%)`;
+  c.save();c.globalAlpha=amt;c.globalCompositeOperation='screen';c.lineCap=c.lineJoin='round';
+  c.strokeStyle=c.fillStyle=col;c.shadowColor=col;c.shadowBlur=12*s;c.lineWidth=1.8*s;
+  TRACES.forEach(tr=>{poly(c,tr,false);c.stroke()});
+  TRACES.forEach(tr=>[tr[0],tr[tr.length-1]].forEach(i=>{const[x,y]=P(i);c.beginPath();c.arc(x,y,3.2*s,0,7);c.fill()}));
+  c.fillStyle='#fff';c.shadowColor='#fff';c.shadowBlur=18*s;
+  TRACES.forEach((tr,i)=>{const[x,y]=along(tr,(t*.35+i*.173)%1);c.beginPath();c.arc(x,y,2.6*s,0,7);c.fill()});
+  c.shadowBlur=0;c.fillStyle=col;c.globalAlpha=amt*.5;
+  for(let i=0;i<468;i+=9){const[x,y]=P(i);c.fillRect(x-.8*s,y-.8*s,1.6*s,1.6*s)}
+  c.restore();
+}
+
+function veil(c,t){
+  let top=1e9,bot=-1e9;OVAL.forEach(i=>{const y=P(i)[1];top=Math.min(top,y);bot=Math.max(bot,y)});
+  const h=bot-top||1, scan=top+((t*.3)%1.3-.15)*h, N=24, buckets=Array.from({length:N},()=>[]);
+  for(const[a,b]of EDGES){const pa=P(a),pb=P(b);const k=Math.max(0,Math.min(N-1,Math.floor(((pa[1]+pb[1])/2-top)/h*N)));buckets[k].push(pa,pb)}
+  c.save();c.globalCompositeOperation='screen';c.lineWidth=.9*s;
+  const pass=(dx,colFn,alpha)=>buckets.forEach((seg,k)=>{if(!seg.length)return;const y=top+(k+.5)/N*h,band=Math.exp(-(((y-scan)/(h*.12))**2));
+    c.globalAlpha=amt*alpha*(.25+.75*band);c.strokeStyle=colFn(k);c.beginPath();for(let i=0;i<seg.length;i+=2){c.moveTo(seg[i][0]+dx,seg[i][1]);c.lineTo(seg[i+1][0]+dx,seg[i+1][1])}c.stroke()});
+  pass(-1.8*s,()=>'#ff3df2',.5);pass(1.8*s,()=>'#3dfcff',.5);
+  pass(0,k=>`hsl(${(260+hue+k*5)%360} 90% 80%)`,1);
+  c.globalAlpha=amt;c.strokeStyle=`hsl(${(170+hue)%360} 100% 75%)`;c.lineWidth=1.6*s;c.shadowColor=c.strokeStyle;c.shadowBlur=12*s;
+  [[468,469],[473,474]].forEach(([ci,ei])=>{if(!lm[ci])return;const p=P(ci),r=dist(p,P(ei));c.beginPath();c.arc(p[0],p[1],r*1.5,0,7);c.stroke();c.beginPath();c.arc(p[0],p[1],r*2.2,t*2,t*2+2.2);c.stroke()});
+  c.restore();
+}
+
+function wing(c,lid,browAnchor){
+  const pts=lid.map(P),inner=pts[0],outer=pts[pts.length-1],m=centroid(lid),b=P(browAnchor);
+  let ux=b[0]-m[0],uy=b[1]-m[1];const ul=Math.hypot(ux,uy)||1;ux/=ul;uy/=ul;
+  const dx=outer[0]-inner[0],dy=outer[1]-inner[1],tip=[outer[0]+dx*.42+ux*ul*.55,outer[1]+dy*.42+uy*ul*.55];
+  c.beginPath();pts.forEach(([x,y],i)=>{const k=(1+3.2*i/(pts.length-1))*s;i?c.lineTo(x+ux*k,y+uy*k):c.moveTo(x,y)});
+  c.lineTo(tip[0],tip[1]);[...pts].reverse().forEach(([x,y])=>c.lineTo(x,y));c.closePath();
+}
+function prism(c,t){
+  c.save();
+  [[LID_R,BROWLO_R,105],[LID_L,BROWLO_L,334]].forEach(([lid,brow,ba])=>{
+    const a=centroid(lid),b=centroid(brow),g=c.createLinearGradient(a[0],a[1],b[0],b[1]),h0=hue+t*12;
+    g.addColorStop(0,`hsl(${(280+h0)%360} 90% 60%)`);g.addColorStop(.5,`hsl(${(195+h0)%360} 90% 65%)`);g.addColorStop(1,`hsla(${(330+h0)%360} 90% 70% / 0)`);
+    poly(c,[...lid,...[...brow].reverse()]);c.fillStyle=g;
+    c.filter=`blur(${3*s}px)`;c.globalCompositeOperation='soft-light';c.globalAlpha=amt;c.fill();c.fill();
+    c.globalCompositeOperation='screen';c.globalAlpha=amt*.35;c.fill();c.filter='none';
+    c.globalCompositeOperation='source-over';c.globalAlpha=amt*.92;c.fillStyle=`hsl(${(265+hue)%360} 45% 9%)`;wing(c,lid,ba);c.fill();
+    c.globalAlpha=amt;c.strokeStyle=`hsl(${(190+hue)%360} 90% 82%)`;c.lineWidth=.9*s;c.stroke();
+  });
+  const lo=centroid(LIP_O),lg=c.createLinearGradient(lo[0]-40*s,lo[1],lo[0]+40*s,lo[1]);
+  [0,.5,1].forEach((k,i)=>lg.addColorStop(k,`hsl(${(320+hue+i*35+t*15)%360} 80% 62%)`));
+  c.beginPath();poly(c,LIP_O);const inner=new Path2D();LIP_I.forEach((i,k)=>{const[x,y]=P(i);k?inner.lineTo(x,y):inner.moveTo(x,y)});
+  const lips=new Path2D();LIP_O.forEach((i,k)=>{const[x,y]=P(i);k?lips.lineTo(x,y):lips.moveTo(x,y)});lips.closePath();inner.closePath();lips.addPath(inner);
+  c.fillStyle=lg;c.globalCompositeOperation='multiply';c.globalAlpha=amt*.75;c.fill(lips,'evenodd');
+  c.globalCompositeOperation='screen';c.globalAlpha=amt*.4;c.fill(lips,'evenodd');
+  const hl=P(0),hl2=P(17);c.globalAlpha=amt*.55;c.fillStyle='#fff';c.filter=`blur(${2*s}px)`;
+  c.beginPath();c.ellipse((hl[0]+P(13)[0])/2,(hl[1]+P(13)[1])/2,6*s,1.6*s,0,0,7);c.fill();c.beginPath();c.ellipse(hl2[0],(hl2[1]+P(14)[1])/2,8*s,2*s,0,0,7);c.fill();c.filter='none';
+  c.globalCompositeOperation='screen';
+  [[116,117,118,119],[345,346,347,348]].forEach(row=>row.forEach((i,k)=>{const[x,y]=P(i),r=(4.5-k*.7)*s,tw=.6+.4*Math.sin(t*3+i);
+    const g=c.createLinearGradient(x-r,y-r,x+r,y+r);g.addColorStop(0,'#fff');g.addColorStop(1,`hsl(${(200+hue+k*40)%360} 90% 70%)`);
+    c.globalAlpha=amt*tw;c.fillStyle=g;c.beginPath();c.moveTo(x,y-r*1.3);c.lineTo(x+r,y);c.lineTo(x,y+r*1.3);c.lineTo(x-r,y);c.closePath();c.fill()}));
+  [123,352].forEach(i=>{const[x,y]=P(i),g=c.createRadialGradient(x,y,0,x,y,26*s);g.addColorStop(0,`hsla(${(300+hue)%360} 90% 85% / .5)`);g.addColorStop(1,'transparent');c.globalAlpha=amt;c.fillStyle=g;c.fillRect(x-26*s,y-26*s,52*s,52*s)});
+  c.restore();
+}
+const DRAW={chrome,circuit,veil,prism};
+
+function frame(now){
+  requestAnimationFrame(frame);
+  if(!src)return;
+  ctx.save();ctx.clearRect(0,0,W,H);
+  if(mirror){ctx.translate(W,0);ctx.scale(-1,1)}
+  ctx.drawImage(src,0,0,W,H);
+  if(lm){s=dist(P(234),P(454))/260;try{DRAW[look](ctx,now/1000)}catch(e){console.error(e)}}
+  ctx.restore();
+  if(live&&mesh&&!busy&&video.readyState>=2){busy=true;mesh.send({image:video}).catch(()=>{}).finally(()=>busy=false)}
+}
+function size(w,h){const k=Math.min(1,1280/Math.max(w,h));W=cv.width=ov.width=Math.round(w*k);H=cv.height=ov.height=Math.round(h*k);$('#empty').hidden=true;$('#snap').disabled=false}
+
+let mesh=null;
+try{
+  mesh=new FaceMesh({locateFile:f=>f});
+  mesh.setOptions({maxNumFaces:1,refineLandmarks:true,minDetectionConfidence:.5,minTrackingConfidence:.5});
+  mesh.onResults(r=>{lm=(r.multiFaceLandmarks&&r.multiFaceLandmarks[0])||null;if(!live)say(lm?'':'No face found. Try a straight-on photo with even light.')});
+  mesh.initialize().then(()=>say(src?'':'')).catch(e=>say('The face model could not load: '+e.message));
+}catch(e){say('The face model could not load in this browser.')}
+
+async function startCam(){
+  try{
+    const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1280}}});
+    video.srcObject=st;await video.play();live=true;mirror=true;src=video;lm=null;size(video.videoWidth,video.videoHeight);say('');
+  }catch(e){say('The camera is blocked here. Upload a photo instead, or open this page from your own site to use it live.')}
+}
+async function useFile(f){
+  if(!f)return;
+  if(live){video.srcObject&&video.srcObject.getTracks().forEach(t=>t.stop());live=false}
+  const img=new Image();img.src=URL.createObjectURL(f);await img.decode();
+  mirror=false;src=img;lm=null;size(img.naturalWidth,img.naturalHeight);say('Finding your face…');
+  if(mesh){mesh.reset&&mesh.reset();await mesh.send({image:img});await mesh.send({image:img})}
+}
+$$('.cam').forEach(b=>b.addEventListener('click',startCam));
+$$('.file').forEach(i=>i.addEventListener('change',e=>useFile(e.target.files[0])));
+$('#snap').addEventListener('click',()=>{const im=new Image();im.src=cv.toDataURL('image/jpeg',.92);im.alt='Snapshot: '+LOOKS[look][0];$('#shots').hidden=false;$('.strip').prepend(im)});
+window.__test={useFile,pick};
+requestAnimationFrame(frame);
+}
+</script>
+</body>
+</html>
